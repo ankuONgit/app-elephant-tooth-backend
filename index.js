@@ -1,55 +1,80 @@
 const express = require('express');
 const app = express();
 const port = 3000;
+const db = require('./db');
 
-// Middleware to parse JSON bodies
 app.use(express.json());
 
-// Sample in-memory data (replace with a database later)
-let items = [
-    { id: 1, name: 'Item 1' },
-    { id: 2, name: 'Item 2' }
-];
+/**
+ * CREATE new user (POST /api/info)
+ */
+app.post('/api/info', (req, res) => {
+    const { profile_pic, first_name, last_name, email, phone_number } = req.body;
+    const sql = `INSERT INTO info (profile_pic, first_name, last_name, email, phone_number) 
+               VALUES (?, ?, ?, ?, ?)`;
 
-// GET: Fetch all items
-app.get('/api/items', (req, res) => {
-    res.json(items);
+    db.query(sql, [profile_pic, first_name, last_name, email, phone_number], (err, result) => {
+        if (err) {
+            console.error('Insert error:', err);
+            return res.status(500).json({ error: 'Failed to insert user' });
+        }
+        res.status(201).json({ id: result.insertId, message: 'User created successfully' });
+    });
 });
 
-// GET: Fetch a single item by ID
-app.get('/api/items/:id', (req, res) => {
-    const item = items.find(i => i.id === parseInt(req.params.id));
-    if (!item) return res.status(404).json({ message: 'Item not found' });
-    res.json(item);
+/**
+ * READ all users (GET /api/info)
+ */
+app.get('/api/info', (req, res) => {
+    db.query('SELECT * FROM info', (err, results) => {
+        if (err) {
+            console.error('Fetch error:', err);
+            return res.status(500).json({ error: 'Failed to fetch users' });
+        }
+        res.json(results);
+    });
 });
 
-// POST: Create a new item
-app.post('/api/items', (req, res) => {
-    const newItem = {
-        id: items.length + 1,
-        name: req.body.name
-    };
-    items.push(newItem);
-    res.status(201).json(newItem);
+/**
+ * READ single user (GET /api/info/:id)
+ */
+app.get('/api/info/:id', (req, res) => {
+    const { id } = req.params;
+    db.query('SELECT * FROM info WHERE id = ?', [id], (err, results) => {
+        if (err) return res.status(500).json({ error: 'Failed to fetch user' });
+        if (results.length === 0) return res.status(404).json({ message: 'User not found' });
+        res.json(results[0]);
+    });
 });
 
-// PUT: Update an item by ID
-app.put('/api/items/:id', (req, res) => {
-    const item = items.find(i => i.id === parseInt(req.params.id));
-    if (!item) return res.status(404).json({ message: 'Item not found' });
-    item.name = req.body.name;
-    res.json(item);
+/**
+ * UPDATE user (PUT /api/info/:id)
+ */
+app.put('/api/info/:id', (req, res) => {
+    const { id } = req.params;
+    const { profile_pic, first_name, last_name, email, phone_number } = req.body;
+    const sql = `UPDATE info 
+               SET profile_pic = ?, first_name = ?, last_name = ?, email = ?, phone_number = ?
+               WHERE id = ?`;
+
+    db.query(sql, [profile_pic, first_name, last_name, email, phone_number, id], (err, result) => {
+        if (err) return res.status(500).json({ error: 'Failed to update user' });
+        res.json({ message: 'User updated successfully' });
+    });
 });
 
-// DELETE: Delete an item by ID
-app.delete('/api/items/:id', (req, res) => {
-    const index = items.findIndex(i => i.id === parseInt(req.params.id));
-    if (index === -1) return res.status(404).json({ message: 'Item not found' });
-    items.splice(index, 1);
-    res.json({ message: 'Item deleted' });
+/**
+ * DELETE user (DELETE /api/info/:id)
+ */
+app.delete('/api/info/:id', (req, res) => {
+    const { id } = req.params;
+    db.query('DELETE FROM info WHERE id = ?', [id], (err, result) => {
+        if (err) return res.status(500).json({ error: 'Failed to delete user' });
+        res.json({ message: 'User deleted successfully' });
+    });
 });
 
-// Start the server
+// Start server
 app.listen(port, () => {
-    console.log(`Server running at http://localhost:${port}`);
+    console.log(`🚀 Server is running on http://localhost:${port}`);
 });
